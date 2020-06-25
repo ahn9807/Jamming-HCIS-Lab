@@ -378,7 +378,8 @@ GameObject:
   - component: {fileID: 4152282430061820}
   - component: {fileID: 95459724170094948}
   - component: {fileID: 143407035941799626}
-  - component: {fileID: 114143503075252406}
+  - component: {fileID: 8400971622295462822}
+  - component: {fileID: 5916173524506956404}
   m_Layer: 0
   m_Name: Parrot
   m_TagString: Untagged
@@ -399,7 +400,6 @@ Transform:
   m_Children:
   - {fileID: 4400117997698162}
   - {fileID: 4973797341942996}
-  - {fileID: 4001814206231474}
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -440,7 +440,23 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0, z: -0.4}
---- !u!114 &114143503075252406
+--- !u!54 &8400971622295462822
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1274995391033446}
+  serializedVersion: 2
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
+--- !u!114 &5916173524506956404
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -449,12 +465,43 @@ MonoBehaviour:
   m_GameObject: {fileID: 1274995391033446}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 99cb5703ed2034048b20856451618985, type: 3}
+  m_Script: {fileID: 11500000, guid: dd28348c27a7d8c4c8f4eec1d8fdf3af, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  speed: 30
-  turnSpeed: 200
-  gravity: 20
+  leftHand: {fileID: 0}
+  rightHand: {fileID: 0}
+  animations:
+  - flyingAnimalState: 0
+    transitionName: flight_straight
+  - flyingAnimalState: 1
+    transitionName: flight_turn_left
+  - flyingAnimalState: 2
+    transitionName: flight_turn_right
+  - flyingAnimalState: 3
+    transitionName: glide_straight
+  - flyingAnimalState: 4
+    transitionName: glide_turn_left
+  - flyingAnimalState: 5
+    transitionName: glide_turn_right
+  minSpeed: 10
+  maxSpeed: 20
+  minAltitude: 20
+  maxAltitude: 100
+  turnSpeed: 30
+  idleSpeed: 10
+  flySpeed: 10
+  hopSpeed: 10
+  perceptionRadius: 10
+  maxDistanceFromBase: 100
+  returnToBase: 1
+  groundLayer: Terrain
+  waterLayer: Water
+  chanceToFind: 0
+  chanceToFly: 0
+  chanceToStand: 0
+  chanceToPecking: 0
+  chanceToRunAway: 0
+  chanceToChangeTarget: 0.4
 --- !u!1 &1306207552469104
 GameObject:
   m_ObjectHideFlags: 0
@@ -1052,111 +1099,3 @@ Transform:
   m_Father: {fileID: 4078437180005092}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1874330960080568
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 4001814206231474}
-  - component: {fileID: 20214919330270462}
-  - component: {fileID: 124604621717439744}
-  - component: {fileID: 81080105734008540}
-  - component: {fileID: 114977182443597180}
-  m_Layer: 0
-  m_Name: Camera
-  m_TagString: MainCamera
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &4001814206231474
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1874330960080568}
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 10.34025, y: 5.4800005, z: -5.4788055}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children: []
-  m_Father: {fileID: 4152282430061820}
-  m_RootOrder: 2
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!20 &20214919330270462
-Camera:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1874330960080568}
-  m_Enabled: 1
-  serializedVersion: 2
-  m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
-  m_projectionMatrixMode: 1
-  m_GateFitMode: 2
-  m_FOVAxisMode: 0
-  m_SensorSize: {x: 36, y: 24}
-  m_LensShift: {x: 0, y: 0}
-  m_FocalLength: 50
-  m_NormalizedViewPortRect:
-    serializedVersion: 2
-    x: 0
-    y: 0
-    width: 1
-    height: 1
-  near clip plane: 0.3
-  far clip plane: 1000
-  field of view: 60
-  orthographic: 0
-  orthographic size: 5
-  m_Depth: -1
-  m_CullingMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_RenderingPath: -1
-  m_TargetTexture: {fileID: 0}
-  m_TargetDisplay: 0
-  m_TargetEye: 3
-  m_HDR: 1
-  m_AllowMSAA: 1
-  m_AllowDynamicResolution: 0
-  m_ForceIntoRT: 0
-  m_OcclusionCulling: 1
-  m_StereoConvergence: 10
-  m_StereoSeparation: 0.022
---- !u!124 &124604621717439744
-Behaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1874330960080568}
-  m_Enabled: 1
---- !u!81 &81080105734008540
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1874330960080568}
-  m_Enabled: 1
---- !u!114 &114977182443597180
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1874330960080568}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 93a111041a2b66c4684785834d7cc452, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  lookAt: {fileID: 4152282430061820}
-  camTransform: {fileID: 4152282430061820}
-  distance: 10
