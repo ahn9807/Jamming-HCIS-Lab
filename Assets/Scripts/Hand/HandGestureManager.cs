@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Hi5_Interaction_Core;
+using System.Security.Policy;
 
 public enum EHandGestureState
 {
@@ -14,6 +15,7 @@ public enum EHandGestureState
 };
 public enum EHandType
 {
+    Null,
     Left,
     Right,
 }
@@ -25,10 +27,11 @@ public class HandGestureManager : MonoBehaviour
     private EHandGestureState gestureStates;
     private EHandType handType;
     public Vector3 handOffset;
+    private bool somethingOnTheHand;
 
     private void Awake()
     {
-
+        somethingOnTheHand = false;
     }
 
     private void Start()
@@ -81,6 +84,46 @@ public class HandGestureManager : MonoBehaviour
             handInteraction.mVisibleHand.ChangeColor(handInteraction.mVisibleHand.orgColor);
             gestureStates = EHandGestureState.Idle;
             //Debug.Log("Hand Idle!");
+        }
+    }
+
+    public bool IsSomethingOnTheHand()
+    {
+        return somethingOnTheHand;
+    }
+    public bool OccupyHand()
+    {
+        if(somethingOnTheHand == false)
+        {
+            somethingOnTheHand = true;
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    public bool ReleaseHand()
+    {
+        if(somethingOnTheHand == true)
+        {
+            somethingOnTheHand = false;
+            return true;
+        } else
+        {
+            return false;
+        }
+    }
+
+    public bool IsPositionUpside()
+    {
+        if(moveAnchor.transform.up.y > 0)
+        {
+            return false;
+        } else
+        {
+            return true;
         }
     }
 

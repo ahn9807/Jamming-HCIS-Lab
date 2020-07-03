@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 
 [RequireComponent(typeof(CharacterController))]
@@ -58,7 +59,7 @@ public class FlyingAnimal : MonoBehaviour
     public SFlyingAnimalSound[] sounds;
     public Dictionary<EFlyingAnimalAnimationState, string> flyingAnimalAnimationDictionary;
     public Dictionary<EFlyingAnimalSoundState, AudioClip> flyingAnimalSoundDictionary;
-    public GameObject flyingTarget;
+    public Transform flyingTargetTransform;
 
     [SerializeField] float minSpeed;
     [SerializeField] float maxSpeed;
@@ -70,7 +71,6 @@ public class FlyingAnimal : MonoBehaviour
     [SerializeField] float maxAltitudeLimit;
     [SerializeField] float turnSpeed, idleSpeed, flySpeed, hopSpeed;
     [SerializeField] float maxDistanceFromBase;
-    [SerializeField] float standingDistanceFromTarget;
     [SerializeField] bool returnToBase;
     [SerializeField] string groundLayer;
     [SerializeField] string waterLayer;
@@ -92,6 +92,7 @@ public class FlyingAnimal : MonoBehaviour
     Quaternion lookRotation;
     Vector3 baseTarget;
     public bool prevGrounded;
+    public EHandType prevHand = EHandType.Null;
 
     float prevz, zturn;
     float changeToTarget = 0f, changeToFind = 0f, changeToFly = 0f, changeToStand = 0f, changeToPecking = 0f, changeToRunAway = 0f;
@@ -138,27 +139,30 @@ public class FlyingAnimal : MonoBehaviour
 
         UpdateChance();
 
-        //SetAnimator(EFlyingAnimalAnimationState.Idle_1, true);
-        /*
-        if(leftHand.GetHandGestureState() == EHandGestureState.Planed || rightHand.GetHandGestureState() == EHandGestureState.Planed)
+        if (rightHand.GetHandGestureState() == EHandGestureState.Planed && rightHand.IsPositionUpside())
         {
-            birdState = EBirdState.Chase;
+            flyingTargetTransform = rightHand.HandPosition();
+            if(flyingAnimalState == EFlyingAnimalState.Fly)
+            {
+                flyingAnimalState = EFlyingAnimalState.Chase;
+            }
         } else
-        {
-            birdState = EBirdState.Fly;
-        }
-        */
-
-        //debug purpose only
-        if (flyingTarget.activeSelf == true && flyingAnimalState == EFlyingAnimalState.Fly)
-        {
-            flyingAnimalState = EFlyingAnimalState.Chase;
-        }
-        else if(flyingTarget.activeSelf == false)
         {
             flyingAnimalState = EFlyingAnimalState.Fly;
         }
 
+        //debug purpose only
+        /*
+        if (flyingTargetTransform.gameObject.activeSelf == true && flyingAnimalState == EFlyingAnimalState.Fly)
+        {
+            flyingAnimalState = EFlyingAnimalState.Chase;
+        }
+        else if(flyingTargetTransform.gameObject.activeSelf == false)
+        {
+            flyingAnimalState = EFlyingAnimalState.Fly;
+        }
+        */
+        
         if(controller.isGrounded)
         {
 
@@ -182,7 +186,7 @@ public class FlyingAnimal : MonoBehaviour
 
     void FixedUpdateStand()
     {
-        if (flyingTarget == null)
+        if (flyingTargetTransform == null)
         {
             flyingAnimalState = EFlyingAnimalState.Idle;
             return;
@@ -204,22 +208,32 @@ public class FlyingAnimal : MonoBehaviour
         {
             prevGrounded = true;
         }
+
+        if(rightHand.GetHandGestureState() == EHandGestureState.Planed)
+        {
+            controller.transform.position = rightHand.HandPosition().position;
+            transform.rotation = rightHand.HandPosition().rotation * Quaternion.Euler(180, 90, 0);
+        } else
+        {
+            flyingAnimalState = EFlyingAnimalState.Fly;
+            SetAnimator(EFlyingAnimalAnimationState.Take_off, true);
+        }
     }
 
     void FixedUpdateChase()
     {
-        if (flyingTarget == null)
+        if (flyingTargetTransform == null)
         {
             flyingAnimalState = EFlyingAnimalState.Idle;
             return;
         }
 
         //일단은 100을 더해서 레이를 쏴보자...
-        landingPosition = GetLandingPosition(flyingTarget.transform.position + new Vector3(0, 100, 0)) + new Vector3(0, landingDistance / 1.5f, 0);
+        landingPosition = GetLandingPosition(flyingTargetTransform.position + new Vector3(0, 100, 0)) + new Vector3(0, landingDistance / 1.5f, 0);
 
         distanceFromTarget = Vector3.Magnitude(landingPosition - transform.position);
 
-        if (flyingTarget != null)
+        if (flyingTargetTransform != null)
         {
             this.rotation = landingPosition - transform.position;
         } else
@@ -230,6 +244,7 @@ public class FlyingAnimal : MonoBehaviour
         if (Vector2.Distance(new Vector2(transform.position.x, transform.position.z), new Vector2(landingPosition.x, landingPosition.z)) < landingDistance)
         {
             flyingAnimalState = EFlyingAnimalState.Landing;
+            Debug.Log("Landing");
         }
 
         UpdateFlyingMotionVelocityAndAnimation();
@@ -237,7 +252,7 @@ public class FlyingAnimal : MonoBehaviour
 
     void FixedUpdateLanding()
     {
-        if(flyingTarget == null)
+        if(flyingTargetTransform == null)
         {
             flyingAnimalState = EFlyingAnimalState.Idle;
             return;
@@ -246,14 +261,14 @@ public class FlyingAnimal : MonoBehaviour
         SetAnimator(EFlyingAnimalAnimationState.Flight_straight, true);
 
         //일단은 100을 더해서 레이를 쏴보자...
-        landingPosition = GetLandingPosition(flyingTarget.transform.position + new Vector3(0, 100, 0)) + new Vector3(0, landingDistance / 1.5f, 0);
+        landingPosition = GetLandingPosition(flyingTargetTransform.position + new Vector3(0, 100, 0)) + new Vector3(0, landingDistance / 1.5f, 0);
 
         rotation = landingPosition - transform.position;
         rotation.y = 0;
 
         UpdateFlyingMotionVelocityAndAnimation();
 
-        if(Vector2.Distance(new Vector2(landingPosition.x, landingPosition.z), new Vector2(transform.position.x, transform.position.z)) < controller.radius / 10f)
+        if(Vector2.Distance(new Vector2(landingPosition.x, landingPosition.z), new Vector2(transform.position.x, transform.position.z)) < controller.radius / 1f)
         {
             flyingAnimalState = EFlyingAnimalState.Stand;
             velocity = Vector3.zero;
@@ -409,6 +424,31 @@ public class FlyingAnimal : MonoBehaviour
     }
 
     //Scripts for usefull things
+    void OccupyHand(EHandType handType)
+    {
+        if(handType == EHandType.Right)
+        {
+            rightHand.OccupyHand();
+            prevHand = EHandType.Right;
+        } else
+        {
+            leftHand.OccupyHand();
+            prevHand = EHandType.Left;
+        }
+    }
+
+    void ReleaseHand(EHandType handType)
+    {
+        if(handType == EHandType.Right)
+        {
+            rightHand.ReleaseHand();
+            prevHand = EHandType.Null;
+        } else
+        {
+            leftHand.ReleaseHand();
+            prevHand = EHandType.Null;
+        }
+    }
     float CalculateAmplitude()
     {
         int layerMask = 1 << LayerMask.NameToLayer(groundLayer);
