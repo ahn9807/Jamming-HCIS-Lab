@@ -82,6 +82,8 @@ public class FlyingAnimal : MonoBehaviour
     [Range(0, 1)] [SerializeField] float chanceToChangeTarget;
     [Range(0, 1)] [SerializeField] float chanceToRandomSound;
 
+    [SerializeField] ArduinoInteraction arduinoInteraction;
+
     Animator birdAnimator;
     [SerializeField]
     EFlyingAnimalState flyingAnimalState;
@@ -165,7 +167,10 @@ public class FlyingAnimal : MonoBehaviour
         
         if(controller.isGrounded)
         {
-
+            arduinoInteraction.SetStiffness(1);
+        } else
+        {
+            arduinoInteraction.SetStiffness(0);
         }
 
         //새가 날지 않는 상황 즉 chase 하지도 않고, fly 하지도 않는 상태면 중력을 준다. 
