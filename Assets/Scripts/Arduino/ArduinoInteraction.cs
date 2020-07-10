@@ -6,18 +6,18 @@ public class ArduinoInteraction : MonoBehaviour
 {
     float stiffness;
 
-    Arduino arduino;
+    [SerializeField]
+    ArduinoSensor sensor;
 
-    // Start is called before the first frame update
-    void Start()
+    private void Start()
     {
-        arduino = Arduino.self; 
+        ArduinoPump.ActivatePressurePump();
+        ArduinoPump.ActivatePressureSol();
     }
 
-    // Update is called once per frame
-    void Update()
+    private void Update()
     {
-        
+        //Debug.Log(sensor.GetSensorValue());
     }
 
     public void SetStiffness(float stiffness)

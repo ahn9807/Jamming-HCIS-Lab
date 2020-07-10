@@ -21,6 +21,13 @@ public enum EHandType
 }
 public class HandGestureManager : MonoBehaviour
 {
+    Dictionary<Hi5_Glove_Interaction_Finger_Type, Hi5_Glove_Interaction_Finger> mFingers = new Dictionary<Hi5_Glove_Interaction_Finger_Type, Hi5_Glove_Interaction_Finger>();
+    public List<Transform> m_ThumbFingerTransforms;
+    public List<Transform> m_IndexFingerTransforms;
+    public List<Transform> m_MiddleFingerTransforms;
+    public List<Transform> m_RingFingerTransforms;
+    public List<Transform> m_PinkyFingerTransforms;
+
     public bool isLeft;
     public Hi5_Glove_Interaction_Hand handInteraction = null;
     public Transform moveAnchor;

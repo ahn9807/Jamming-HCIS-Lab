@@ -1,26 +1,52 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.PlayerLoop;
 
 public static class ArduinoPump {
+    static bool PressurePumpOn;
+    static bool VaccumPumpOn;
+    static bool PressureSolOn;
+    static bool VaccumSolOn;
+
     public static void ActivatePressurePump()
     {
-        Arduino.self.WriteToArduino("2");
+        if(!PressurePumpOn)
+        {
+            PressurePumpOn = true;
+            Arduino.self.WriteToArduino("2");
+        }
+
     }
 
     public static void ReleasePressurePump()
     {
-        Arduino.self.WriteToArduino("6");
+        if(PressurePumpOn)
+        {
+            Arduino.self.WriteToArduino("6");
+            PressurePumpOn = false;
+        }
+
     }
 
     public static void ActivateVaccumPump()
     {
-        Arduino.self.WriteToArduino("1");
+        if(!VaccumPumpOn)
+        {
+            Arduino.self.WriteToArduino("1");
+            VaccumPumpOn = true;
+        }
+
     }
 
     public static void ReleaseVaccumPump()
     {
-        Arduino.self.WriteToArduino("5");
+        if(VaccumPumpOn)
+        {
+            Arduino.self.WriteToArduino("5");
+            VaccumPumpOn = false;
+        }
+
     }
 
     public static void ActivateWaterSuck()
@@ -40,21 +66,40 @@ public static class ArduinoPump {
 
     public static void ActivateVaccumSol()
     {
-        Arduino.self.WriteToArduino("8");
+        if(!VaccumSolOn)
+        {
+            Arduino.self.WriteToArduino("8");
+            VaccumSolOn = true;
+        }
+
     }
 
     public static void ReleaseVaccumSol()
     {
-        Arduino.self.WriteToArduino("a");
+        if(VaccumSolOn)
+        {
+            Arduino.self.WriteToArduino("a");
+            VaccumSolOn = false;
+        }
+
     }
 
     public static void ActivatePressureSol()
     {
-        Arduino.self.WriteToArduino("9");
+        if(!PressureSolOn)
+        {
+            Arduino.self.WriteToArduino("9");
+            PressurePumpOn = true;
+        }
+
     }
 
     public static void ReleasePressureSol()
     {
-        Arduino.self.WriteToArduino("b");
+        if(PressureSolOn)
+        {
+            Arduino.self.WriteToArduino("b");
+            PressurePumpOn = false;
+        }
     }
 }
