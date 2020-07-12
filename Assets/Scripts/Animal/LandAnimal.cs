@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Security.Policy;
 using UnityEditorInternal;
 using UnityEngine;
 using Valve.VR;
@@ -10,70 +11,107 @@ public class LandAnimal : MonoBehaviour
     public enum ELandingAnimalState
     {
         Idle,
-        Walking,
+        Wander,
+        Following,
+        Chasing,
+        RunAway,
         Attacking,
         Sleeping,
         Sitting,
+        Dead,
+    }
+
+    public enum ELandingAnimalAnimationState
+    {
+        Idle,
+        Walking,
         Running,
+        Attacking,
+        Sleeping,
+        Sitting,
+        Dead,
+    }
+
+    public enum ELandingAnimalSoundState
+    {
+        Idle,
+        Walking,
+        Running,
+        Attacking,
+        Sleeping,
+        Sitting,
         Dead,
     }
 
     [System.Serializable]
     public struct SLandingAnimalAnimation
     {
-        public ELandingAnimalState state;
+        public ELandingAnimalAnimationState state;
         public string transitionName;
     }
 
     [System.Serializable]
     public struct SLandingAnimalSound
     {
-        public ELandingAnimalState state;
+        public ELandingAnimalSoundState state;
         public AudioClip clip;
+        public float minSoundIntervalInSeconds;
+        public float maxXoundIntervalInSeconds;
+        public float soundInterval;
     }
 
     #region 변수 선언
+    [Header("--- Animal Animation and Sound Settings ---")]
     public SLandingAnimalAnimation[] animations;
     public SLandingAnimalSound[] sounds;
-    public Dictionary<ELandingAnimalState, string> landingAnimalAnimationDictionary = new Dictionary<ELandingAnimalState, string>();
-    public Dictionary<ELandingAnimalState, AudioClip> landingAnimalSoundDictionary = new Dictionary<ELandingAnimalState, AudioClip>();
+    public Dictionary<ELandingAnimalAnimationState, SLandingAnimalAnimation> landingAnimalAnimationDictionary = new Dictionary<ELandingAnimalAnimationState, SLandingAnimalAnimation>();
+    public Dictionary<ELandingAnimalSoundState, SLandingAnimalSound> landingAnimalSoundDictionary = new Dictionary<ELandingAnimalSoundState, SLandingAnimalSound>();
 
-
+    [Header("--- Animal Movement Settings ---")]
     [SerializeField] float walkingSpeed;
     [SerializeField] float runningSpeed;
     [SerializeField] float turnSpeed;
+    [SerializeField] float minWanderChangeDirectionInSeconds;
+    [SerializeField] float maxWanderChangeDirectionInSeconds;
     [SerializeField] float gravity;
-    [SerializeField] float maxHeadingChange;
-    [SerializeField] float maxDistanceFromBase;
+    [SerializeField] bool avoidWater;
+    [SerializeField] float seaLevel;
     [SerializeField] bool returnToBase;
-    [SerializeField] string groundLayer;
-    [SerializeField] string waterLayer;
+    [SerializeField] float maxDistanceFromBase;
+
+    [Header("--- Animal State Transition Settings (probalbity in seconds) ---")]
+    [SerializeField] [Range(0, 1)] float IdleToWander;
+    [SerializeField] [Range(0, 1)] float wanderToSleeping;
+    [SerializeField] [Range(0, 1)] float wanderToSitting;
+    [SerializeField] [Range(0, 1)] float wanderToIdle;
+    [SerializeField] [Range(0, 1)] float sittingToSleeping;
+    [SerializeField] [Range(0, 1)] float sittingToWander;
+    [SerializeField] [Range(0, 1)] float sleepingToAwake;
+
+    [Header("--- Animal Perception Settings ---")]
+    [SerializeField] float perceptionRadius;
+    [SerializeField] float actingRadius;
+    [SerializeField] GameObject[] followingTargets;
+    [SerializeField] GameObject[] enemyTargets;
+    [SerializeField] GameObject[] runAwayTargets;
+
+    [Header("--- Animal Stamina Settings ---")]
 
     [SerializeField] float health;
     [SerializeField] float attackPower;
 
-    [Range(0, 1)] [SerializeField] float chanceToWalking;
-    [Range(0, 1)] [SerializeField] float chanceToRunning;
-    [Range(0, 1)] [SerializeField] float chanceToSleeping;
-    [Range(0, 1)] [SerializeField] float chanceToSitting;
-    [Range(0, 1)] [SerializeField] float chanceToAttacking;
-    [Range(0, 1)] [SerializeField] float chanceToIdling;
-    [SerializeField] float minWanderChangeDirectionInSeconds;
-    [SerializeField] float maxWanderChangeDirectionInSeconds;
-    [SerializeField] float minSoundIntervalInSeconds;
-    [SerializeField] float maxXoundIntervalInSeconds;
+    [Header("--- System Settings ---")]
+    [SerializeField] AudioSource staticAudio;
+    [SerializeField] AudioSource dynamicAudio;
 
-    [SerializeField] float distantToGround;
-    [SerializeField] float groundCheckRadius;
-
-    [SerializeField] ArduinoInteraction arduinoInteraction;
-
+    //private variables
     Animator animator;
     [SerializeField] ELandingAnimalState state;
     CharacterController controller;
-    [SerializeField] AudioSource staticAudio;
-    [SerializeField] AudioSource dynamicAudio;
-    float distanceFromBase;
+    SphereCollider perceptionCollider;
+    GameObject currentEnemy;
+    GameObject currentFollower;
+    GameObject currentRunAwayTarget;
 
     Vector3 velocity;
     Vector2 wanderDirection;
@@ -85,32 +123,37 @@ public class LandAnimal : MonoBehaviour
     {
         animator = GetComponent<Animator>();
         controller = GetComponent<CharacterController>();
+        perceptionCollider = transform.gameObject.AddComponent<SphereCollider>();
+        perceptionCollider.isTrigger = true;
+        perceptionCollider.center = transform.position;
+        perceptionCollider.radius = perceptionRadius;
 
         for (int i = 0; i < animations.Length; i++)
         {
-            landingAnimalAnimationDictionary.Add(animations[i].state, animations[i].transitionName);
+            landingAnimalAnimationDictionary.Add(animations[i].state, animations[i]);
         }
 
         for (int i = 0; i < sounds.Length; i++)
         {
-            landingAnimalSoundDictionary.Add(sounds[i].state, sounds[i].clip);
+            landingAnimalSoundDictionary.Add(sounds[i].state, sounds[i]);
         }
 
         StartCoroutine(IERandomDirection());
+        state = ELandingAnimalState.Wander;
     }
 
     private void FixedUpdate()
     {
-        switch(state)
+        switch (state)
         {
             case ELandingAnimalState.Idle:
                 FixedUpdateIdle();
                 break;
-            case ELandingAnimalState.Walking:
-                FixedUpdateWalking();
+            case ELandingAnimalState.Wander:
+                FixedUpdateWander();
                 break;
-            case ELandingAnimalState.Running:
-                FixedUpdateRunning();
+            case ELandingAnimalState.Following:
+                FixedUpdateFollowing();
                 break;
             case ELandingAnimalState.Attacking:
                 FixedUpdateAttacking();
@@ -125,58 +168,176 @@ public class LandAnimal : MonoBehaviour
                 FixedUpdateDead();
                 break;
         }
+
+        UpdatePerceptedObjects();
     }
 
     #region fixedUpdates
     void FixedUpdateIdle()
     {
-        SetAnimator(ELandingAnimalState.Idle, true);
+        //에러 처리 루틴이 필요할 경우 혹은 아무 것도 안하고 서 있는 경우
+        SetAnimator(ELandingAnimalAnimationState.Idle, true);
+        PlaySound(ELandingAnimalSoundState.Idle);
+
+        //어느정도 시간이 지나면
+        if(CalculateChance(IdleToWander))
+            state = ELandingAnimalState.Wander;
+
+        //idle 하다가 following 할려는 대상을 발견하면
+        if (followingTargets != null)
+            state = ELandingAnimalState.Following;
     }
 
-    void FixedUpdateWalking()
+    void FixedUpdateWander()
     {
-        SetAnimator(ELandingAnimalState.Walking, true);
-        PlaySound(ELandingAnimalState.Walking);
-        PlaySound(ELandingAnimalState.Idle, minWanderChangeDirectionInSeconds, maxWanderChangeDirectionInSeconds);
+        UpdateWalking(wanderDirection);
 
-        UpdateVelocityAndMove(wanderDirection, walkingSpeed);
+        //갑자기 서고 싶으면
+        if (CalculateChance(wanderToIdle))
+            state = ELandingAnimalState.Idle;
+
+        //갑자기 앉고 싶으면
+        if (CalculateChance(wanderToSitting))
+            state = ELandingAnimalState.Sitting;
+        //갑자기 자고 싶으면
+        if (CalculateChance(wanderToSleeping))
+            state = ELandingAnimalState.Sleeping;
+
+        //wander 하다가 following 할려는 대상을 발견하면
+        if (currentFollower != null)
+            state = ELandingAnimalState.Following;
+        //wander 하다가 적을 발견하면 -> 구현 안함
+
+        //wander 하다가 도망쳐야 하는 대상을 발견하면 -> 구현 안함
+
     }
 
-    void FixedUpdateRunning()
+    void FixedUpdateFollowing()
     {
-        SetAnimator(ELandingAnimalState.Running, true);
-        PlaySound(ELandingAnimalState.Running);
+        //following 하다가 대상이 너무 멀어지면 / 조건이 일치하지 않으면 즉 currentFollower 가 null 이거나 조건에 안 맞으면
+        if (currentFollower == null)
+            state = ELandingAnimalState.Wander;
+        else
+        {
+            //following 하다가 대상과 충분히 가까워 지면 -> sitting 으로 전환
+            if (Vector3.Distance(currentFollower.transform.position, transform.position) < actingRadius)
+                state = ELandingAnimalState.Sitting;
 
-        UpdateVelocityAndMove(wanderDirection, runningSpeed);
+            UpdateWalking((new Vector2(currentFollower.transform.position.x, currentFollower.transform.position.z) - new Vector2(transform.position.x, transform.position.z)).normalized);
+        }
     }
 
     void FixedUpdateAttacking()
     {
-        SetAnimator(ELandingAnimalState.Attacking, true);
-        PlaySound(ELandingAnimalState.Attacking);
+        SetAnimator(ELandingAnimalAnimationState.Attacking, true);
+        PlaySound(ELandingAnimalSoundState.Attacking);
     }
 
     void FixedUpdateSitting()
     {
-        SetAnimator(ELandingAnimalState.Sitting, true);
-        PlaySound(ELandingAnimalState.Sitting);
+        SetAnimator(ELandingAnimalAnimationState.Sitting, true);
+        PlaySound(ELandingAnimalSoundState.Sitting);
+
+        //앉아 있다 following 해야 하는 대상이 생기면
+        if (currentFollower != null)
+            state = ELandingAnimalState.Following;
+        //앉아 있다 chasing 해야 하는 대상이 생기면
+        if (currentEnemy != null)
+            state = ELandingAnimalState.Chasing;
+        //일정한 시간이 지나면
+        if (CalculateChance(sittingToWander))
+            state = ELandingAnimalState.Wander;
+        //위협을 느끼면
+        
 
     }
 
     void FixedUpdateSleeping()
     {
-        SetAnimator(ELandingAnimalState.Sleeping, true);
-        PlaySound(ELandingAnimalState.Sleeping);
-     
+        SetAnimator(ELandingAnimalAnimationState.Sleeping, true);
+        PlaySound(ELandingAnimalSoundState.Sleeping);
+
+        //일정한 시간이 지나면
+        if (CalculateChance(sleepingToAwake))
+            state = ELandingAnimalState.Idle;
     }
 
     void FixedUpdateDead()
     {
+        //천천히 사라진다.
+    }
+    #endregion
 
+    #region collider 충돌 체크 및 perception 체크
+    private void OnTriggerEnter(Collider other)
+    {
+        for (int i = 0; i < followingTargets.Length; i++)
+        {
+            if (followingTargets[i] == other.gameObject)
+            {
+                currentFollower = other.gameObject;
+                return;
+            }
+        }
+
+        for (int i = 0; i < enemyTargets.Length; i++)
+        {
+            if (followingTargets[i] == other.gameObject)
+            {
+                currentEnemy = other.gameObject;
+                return;
+            }
+        }
+
+        for (int i = 0; i<runAwayTargets.Length;i++)
+        {
+            if(runAwayTargets[i] == other.gameObject)
+            {
+                currentRunAwayTarget = other.gameObject;
+                return;
+            }
+        }
+    }
+
+    private void UpdatePerceptedObjects()
+    {
+        if(currentEnemy != null)
+        {
+            if (Vector3.Distance(currentEnemy.transform.position, transform.position) > perceptionRadius + actingRadius)
+                currentEnemy = null;
+        }
+        if(currentFollower != null)
+        {
+            if (Vector3.Distance(currentFollower.transform.position, transform.position) > perceptionRadius + actingRadius)
+                currentFollower = null;
+        }
+        if(currentRunAwayTarget != null)
+        {
+            if (Vector3.Distance(currentRunAwayTarget.transform.position, transform.position) > perceptionRadius + actingRadius)
+                currentRunAwayTarget = null;
+        }
     }
     #endregion
 
     #region 유용한 함수들
+    void UpdateWalking(Vector2 direction)
+    {
+        SetAnimator(ELandingAnimalAnimationState.Walking, true);
+        PlaySound(ELandingAnimalSoundState.Walking);
+        PlaySound(ELandingAnimalSoundState.Idle);
+
+        UpdateVelocityAndMove(direction, walkingSpeed);
+    }
+
+    void UpdateRunning(Vector2 direction)
+    {
+        SetAnimator(ELandingAnimalAnimationState.Running, true);
+        PlaySound(ELandingAnimalSoundState.Running);
+        PlaySound(ELandingAnimalSoundState.Idle);
+
+        UpdateVelocityAndMove(direction, runningSpeed);
+    }
+
     void UpdateVelocityAndMove(Vector2 targetDirection, float speed)
     {
         Vector3 desireMove = transform.forward;
@@ -187,40 +348,50 @@ public class LandAnimal : MonoBehaviour
         velocity.z = desireMove.z * speed;
         velocity.y -= gravity;
 
+        if (IsWater())
+        {
+            wanderDirection = -wanderDirection;
+        }
+
         Quaternion surfaceRotation = Quaternion.FromToRotation(Vector3.up, hitInfo.normal);
-        float rotateAngle = Vector2.SignedAngle(Vector2.up, targetDirection);
-        transform.rotation = Quaternion.Lerp(transform.rotation, surfaceRotation * Quaternion.AngleAxis(rotateAngle, Vector3.up), turnSpeed * Time.fixedDeltaTime);
+        float rotateAngle = Vector3.SignedAngle(Vector3.forward, new Vector3(targetDirection.x, 0, targetDirection.y), Vector3.up);
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, surfaceRotation * Quaternion.AngleAxis(rotateAngle, Vector3.up), turnSpeed);
 
         controller.Move(velocity * Time.fixedDeltaTime);
     }
-    void SetAnimator(ELandingAnimalState state, bool b)
+    void SetAnimator(ELandingAnimalAnimationState state, bool b)
     {
-        if(landingAnimalAnimationDictionary.ContainsKey(state) && animator.GetBool(landingAnimalAnimationDictionary[state]) == false)
+        if (landingAnimalAnimationDictionary.ContainsKey(state) && animator.GetBool(landingAnimalAnimationDictionary[state].transitionName) == false)
         {
-            for(int i=0;i<animations.Length; i++)
+            for (int i = 0; i < animations.Length; i++)
             {
                 animator.SetBool(animations[i].transitionName, false);
             }
-            animator.SetBool(landingAnimalAnimationDictionary[state], b);
+            animator.SetBool(landingAnimalAnimationDictionary[state].transitionName, b);
         }
     }
 
     // 그냥 사용하면 계속 재생되며 (static source 를 통해 재생), min max를 주면 랜덤하게 variation 을 주면서 재생된다. (dynamic source 를 통해 재생)
-    void PlaySound(ELandingAnimalState state, float randomRangeMin = 0, float randomRangeMax = 0)
+    void PlaySound(ELandingAnimalSoundState state)
     {
-        if (randomRangeMax == 0)
+        if (landingAnimalSoundDictionary.ContainsKey(state) && landingAnimalSoundDictionary[state].maxXoundIntervalInSeconds == 0)
         {
-            if (landingAnimalSoundDictionary.ContainsKey(state) && staticAudio.clip != landingAnimalSoundDictionary[state])
+            if (staticAudio.clip != landingAnimalSoundDictionary[state].clip)
             {
-                staticAudio.clip = landingAnimalSoundDictionary[state];
-                StartCoroutine(IEPlaySound(landingAnimalSoundDictionary[state], 0));
+                staticAudio.clip = landingAnimalSoundDictionary[state].clip;
+                StartCoroutine(IEPlaySound(landingAnimalSoundDictionary[state].clip, landingAnimalSoundDictionary[state].soundInterval));
             }
-        } else
+        }
+        else
         {
-            if (landingAnimalSoundDictionary.ContainsKey(state) && dynamicAudio.clip != landingAnimalSoundDictionary[state])
+            if (landingAnimalSoundDictionary.ContainsKey(state) && dynamicAudio.clip != landingAnimalSoundDictionary[state].clip)
             {
-                dynamicAudio.clip = landingAnimalSoundDictionary[state];
-                StartCoroutine(IEPlaySoundRandomly(landingAnimalSoundDictionary[state], randomRangeMin, randomRangeMax));
+                dynamicAudio.clip = landingAnimalSoundDictionary[state].clip;
+                StartCoroutine(IEPlaySoundRandomly(
+                    landingAnimalSoundDictionary[state].clip,
+                    landingAnimalSoundDictionary[state].minSoundIntervalInSeconds,
+                    landingAnimalSoundDictionary[state].maxXoundIntervalInSeconds)
+                );
             }
         }
 
@@ -234,12 +405,13 @@ public class LandAnimal : MonoBehaviour
 
     IEnumerator IEPlaySoundRandomly(AudioClip clip, float randomStart = 0, float randomEnd = 0)
     {
-        while(true)
+        while (true)
         {
-            if(clip == dynamicAudio.clip)
+            if (clip == dynamicAudio.clip)
             {
                 dynamicAudio.Play();
-            } else
+            }
+            else
             {
                 yield break;
             }
@@ -250,10 +422,11 @@ public class LandAnimal : MonoBehaviour
 
     IEnumerator IEPlaySound(AudioClip clip, float soundInterval)
     {
-        if(soundInterval == 0)
+        if (soundInterval == 0)
         {
             staticAudio.loop = true;
-        } else
+        }
+        else
         {
             staticAudio.loop = false;
         }
@@ -269,10 +442,11 @@ public class LandAnimal : MonoBehaviour
                 yield break;
             }
 
-            if(staticAudio.loop == false)
+            if (staticAudio.loop == false)
             {
                 yield return new WaitForSeconds(staticAudio.clip.length + soundInterval + float.Epsilon);
-            } else
+            }
+            else
             {
                 yield break;
             }
@@ -280,14 +454,20 @@ public class LandAnimal : MonoBehaviour
         }
     }
 
-    float CalculateChangeBySecond(float chance)
+    bool CalculateChance(float chance)
     {
-        return (1f / chance) * Random.Range(0, 2) * 1f / Time.fixedDeltaTime;
+        if(Random.Range(0,1f) < chance * Time.fixedDeltaTime)
+        {
+            return true;
+        } else
+        {
+            return false;
+        }
     }
 
     IEnumerator IERandomDirection()
     {
-        while(true)
+        while (true)
         {
             wanderDirection = RandomDirection();
             yield return new WaitForSeconds(Random.Range(minWanderChangeDirectionInSeconds, maxWanderChangeDirectionInSeconds));
@@ -299,14 +479,24 @@ public class LandAnimal : MonoBehaviour
         return new Vector2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)).normalized;
     }
 
-    bool IsGrounded()
+    bool IsWater()
     {
-        return Physics.BoxCast(transform.position, new Vector3(groundCheckRadius, distantToGround, groundCheckRadius), -Vector3.up, Quaternion.identity, distantToGround + float.Epsilon);
+        if (transform.position.y < seaLevel)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     private void OnDrawGizmos()
     {
-        Gizmos.DrawWireCube(transform.position + Vector3.down * distantToGround, new Vector3(groundCheckRadius * 2, distantToGround, groundCheckRadius * 2));
+        //Gizmos.DrawRay(transform.position, Vector3.down * Mathf.Infinity);
+        //Gizmos.DrawWireSphere(transform.position, perceptionRadius);
+        //Gizmos.DrawWireSphere(transform.position, actingRadius);
+        Gizmos.DrawRay(transform.position, wanderDirection);
     }
     #endregion
 }
