@@ -92,13 +92,12 @@ public class LandAnimal : MonoBehaviour
     [SerializeField] float perceptionRadius;
     [SerializeField] float actingRadius;
     [SerializeField] GameObject[] followingTargets;
-    [SerializeField] GameObject[] enemyTargets;
-    [SerializeField] GameObject[] runAwayTargets;
+    [SerializeField] GameObject[] enemyTargets; //not implemented yet
+    [SerializeField] GameObject[] runAwayTargets; //not implemented yet
 
-    [Header("--- Animal Stamina Settings ---")]
-
-    [SerializeField] float health;
-    [SerializeField] float attackPower;
+    [Header("--- Animal Stamina Settings --- ")]
+    [SerializeField] float health; //not implemented yet
+    [SerializeField] float attackPower; //not implemented yet
 
     [Header("--- System Settings ---")]
     [SerializeField] AudioSource staticAudio;
@@ -115,6 +114,7 @@ public class LandAnimal : MonoBehaviour
 
     Vector3 velocity;
     Vector2 wanderDirection;
+    Vector3 basePosition;
 
 
     #endregion 
@@ -140,6 +140,7 @@ public class LandAnimal : MonoBehaviour
 
         StartCoroutine(IERandomDirection());
         state = ELandingAnimalState.Wander;
+        basePosition = transform.position;
     }
 
     private void FixedUpdate()
@@ -348,9 +349,19 @@ public class LandAnimal : MonoBehaviour
         velocity.z = desireMove.z * speed;
         velocity.y -= gravity;
 
+        //change wander direction due to water or return to base
         if (IsWater())
         {
-            wanderDirection = -wanderDirection;
+            if(avoidWater)
+            {
+                wanderDirection = -wanderDirection;
+            }
+        } else if(returnToBase)
+        {
+            if(Vector3.Distance(basePosition, transform.position) > maxDistanceFromBase)
+            {
+                wanderDirection = basePosition - transform.position;
+            }
         }
 
         Quaternion surfaceRotation = Quaternion.FromToRotation(Vector3.up, hitInfo.normal);
@@ -493,10 +504,8 @@ public class LandAnimal : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        //Gizmos.DrawRay(transform.position, Vector3.down * Mathf.Infinity);
-        //Gizmos.DrawWireSphere(transform.position, perceptionRadius);
-        //Gizmos.DrawWireSphere(transform.position, actingRadius);
-        Gizmos.DrawRay(transform.position, wanderDirection);
+        Gizmos.DrawWireSphere(transform.position, perceptionRadius);
+        Gizmos.DrawWireSphere(transform.position, actingRadius);
     }
     #endregion
 }
