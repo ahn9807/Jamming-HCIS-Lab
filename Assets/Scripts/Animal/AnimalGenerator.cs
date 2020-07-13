@@ -96,7 +96,7 @@ public class AnimalGenerator : MonoBehaviour
 
         //spwan Object
         GameObject animal = Instantiate(animalPrefab);
-        animal.transform.parent = transform.parent;
+        animal.transform.parent = transform;
         animal.transform.position = spwanPosition;
         animal.transform.rotation = spwanRotation;
         animal.transform.localScale *= sizeMultiplier;
