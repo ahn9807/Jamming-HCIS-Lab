@@ -208,12 +208,9 @@ namespace Hi5_Interaction_Core
 
         void Update()
         {
-            /*
 			if (mGestureRecognition != null) {
 				mGestureRecognition.Update (Time.deltaTime);
 			}
-            */
-
             if (Hi5_Interaction_Const.IsUseVisibleHand)
             {
                 gameObject.GetComponent<HI5.HI5_VIVEInstance>().isVisible = true;

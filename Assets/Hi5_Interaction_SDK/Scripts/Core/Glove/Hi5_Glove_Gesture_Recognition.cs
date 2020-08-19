@@ -27,33 +27,33 @@ namespace Hi5_Interaction_Core
             {
                 mRecord.RecordGesture(Hi5_Glove_Gesture_Recognition_State.EFist);
                 mState = Hi5_Glove_Gesture_Recognition_State.EFist;
-                //mHand.mVisibleHand.ChangeColor(Color.red);
+                mHand.mVisibleHand.ChangeColor(Color.red);
             }
             else if (IsHandIndexPoint())
             {
                 mRecord.RecordGesture(Hi5_Glove_Gesture_Recognition_State.EIndexPoint);
                 mState = Hi5_Glove_Gesture_Recognition_State.EIndexPoint;
-                //mHand.mVisibleHand.ChangeColor(Color.black);
+                mHand.mVisibleHand.ChangeColor(Color.black);
             }
 
             else if (IsHandPlane())
             {
                 mRecord.RecordGesture(Hi5_Glove_Gesture_Recognition_State.EHandPlane);
                 mState = Hi5_Glove_Gesture_Recognition_State.EHandPlane;
-                //mHand.mVisibleHand.ChangeColor(Color.green);
+                mHand.mVisibleHand.ChangeColor(Color.green);
             }
             else if (IsOk())
             {
                 mRecord.RecordGesture(Hi5_Glove_Gesture_Recognition_State.EOk);
                 mState = Hi5_Glove_Gesture_Recognition_State.EOk;
-                //mHand.mVisibleHand.ChangeColor(Color.yellow);
+                mHand.mVisibleHand.ChangeColor(Color.yellow);
             }
         
             else
             {
                 mRecord.RecordGesture(Hi5_Glove_Gesture_Recognition_State.ENone);
                 mState = Hi5_Glove_Gesture_Recognition_State.ENone;
-                //mHand.mVisibleHand.ChangeColor(mHand.mVisibleHand.orgColor);
+                mHand.mVisibleHand.ChangeColor(mHand.mVisibleHand.orgColor);
             }
             //if (Hi5_Interaction_Const.TestPinchOpenCollider)
             //{

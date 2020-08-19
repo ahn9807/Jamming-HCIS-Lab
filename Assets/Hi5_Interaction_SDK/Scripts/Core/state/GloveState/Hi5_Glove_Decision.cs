@@ -101,10 +101,9 @@ namespace Hi5_Interaction_Core
                     return false;
                 }
             }
-			//List<int> pinchs4 = new List<int>();
+            List<int> pinchs4;
 			int ObjectId = -1000;
-			bool isPinch = false;
-			/*
+			bool isPinch = mHand.mState.mJudgeMent.IsFlyIngPinch(out pinchs4, out ObjectId);
 			if (isPinch)
 			{
 				Hi5_Glove_Interaction_Item item = Hi5_Interaction_Object_Manager.GetObjectManager().GetItemById(ObjectId);
@@ -146,7 +145,6 @@ namespace Hi5_Interaction_Core
 				}
 
 			}
-			*/
 			return false;
 		}
 

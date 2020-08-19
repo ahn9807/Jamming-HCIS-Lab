@@ -142,11 +142,11 @@ namespace Hi5_Interaction_Interface
             {
                 Hi5_Glove_Interaction_Hand_Event_Data data = param1 as Hi5_Glove_Interaction_Hand_Event_Data;
                 bool isRun = false;
-                if (data.mHandType == Hi5_Interaction_Core.EHandType.EHandLeft && mHand.m_IsLeftHand)
+                if (data.mHandType == EHandType.EHandLeft && mHand.m_IsLeftHand)
                 {
                     isRun = true;
                 }
-                else if (data.mHandType == Hi5_Interaction_Core.EHandType.EHandRight && !mHand.m_IsLeftHand)
+                else if (data.mHandType == EHandType.EHandRight && !mHand.m_IsLeftHand)
                 {
                     isRun = true;
                 }
@@ -155,10 +155,10 @@ namespace Hi5_Interaction_Interface
                 switch (data.mEventType)
                 {
 					case EEventHandType.EClap:
-						if (data.mHandType == Hi5_Interaction_Core.EHandType.EHandLeft && mHand.m_IsLeftHand) {
-                            HI5_Manager.EnableLeftVibration (200);
-						} else if (data.mHandType == Hi5_Interaction_Core.EHandType.EHandRight && !mHand.m_IsLeftHand) {
-                            HI5_Manager.EnableRightVibration (200);
+						if (data.mHandType == EHandType.EHandLeft && mHand.m_IsLeftHand) {
+							HI5_Manager.EnableLeftVibration (200);
+						} else if (data.mHandType == EHandType.EHandRight && !mHand.m_IsLeftHand) {
+							HI5_Manager.EnableRightVibration (200);
 						}
                         break;
 					case EEventHandType.EPoke:

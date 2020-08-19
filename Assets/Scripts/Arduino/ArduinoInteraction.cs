@@ -11,15 +11,18 @@ public class ArduinoInteraction : MonoBehaviour
 
     private void Start()
     {
-        ArduinoPump.ActivatePressurePump();
-        ArduinoPump.ActivatePressureSol();
+        //ArduinoPump.ActivatePressurePump();
+        //ArduinoPump.ActivatePressureSol();
+        //ArduinoPump.ActivateVaccumPump();
+        //ArduinoPump.ActivateVaccumSol();
+        sensor.SetPressure(60);
     }
 
     private void Update()
     {
         //Debug.Log(sensor.GetSensorValue());
-    }
-
+    }   
+         
     public void SetStiffness(float stiffness)
     {
         this.stiffness = stiffness;

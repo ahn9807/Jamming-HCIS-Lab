@@ -39,7 +39,7 @@ namespace Pinwheel.PolarisStarter
                     .Replace(WEBSITE_PLACEHOLDER, WEBSITE)
                     .Replace(PATREON_PLACEHOLDER, PATREON)
                     .Replace(LINK_COLOR_PLACEHOLDER, LINK_COLOR);
-                Debug.Log(msg);
+                //Debug.Log(msg);
             }
         }
 

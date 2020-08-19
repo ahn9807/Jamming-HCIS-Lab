@@ -56,7 +56,7 @@ public class LandAnimal : MonoBehaviour
         public ELandingAnimalSoundState state;
         public AudioClip clip;
         public float minSoundIntervalInSeconds;
-        public float maxXoundIntervalInSeconds;
+        public float maxSoundIntervalInSeconds;
         public float soundInterval;
     }
 
@@ -385,7 +385,7 @@ public class LandAnimal : MonoBehaviour
     // 그냥 사용하면 계속 재생되며 (static source 를 통해 재생), min max를 주면 랜덤하게 variation 을 주면서 재생된다. (dynamic source 를 통해 재생)
     void PlaySound(ELandingAnimalSoundState state)
     {
-        if (landingAnimalSoundDictionary.ContainsKey(state) && landingAnimalSoundDictionary[state].maxXoundIntervalInSeconds == 0)
+        if (landingAnimalSoundDictionary.ContainsKey(state) && landingAnimalSoundDictionary[state].maxSoundIntervalInSeconds == 0)
         {
             if (staticAudio.clip != landingAnimalSoundDictionary[state].clip)
             {
@@ -401,7 +401,7 @@ public class LandAnimal : MonoBehaviour
                 StartCoroutine(IEPlaySoundRandomly(
                     landingAnimalSoundDictionary[state].clip,
                     landingAnimalSoundDictionary[state].minSoundIntervalInSeconds,
-                    landingAnimalSoundDictionary[state].maxXoundIntervalInSeconds)
+                    landingAnimalSoundDictionary[state].maxSoundIntervalInSeconds)
                 );
             }
         }

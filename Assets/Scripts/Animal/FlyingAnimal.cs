@@ -4,13 +4,16 @@ using UnityEditor;
 using UnityEngine;
 
 [RequireComponent(typeof(Animator))]
+[RequireComponent(typeof(CharacterController))]
 public class FlyingAnimal : MonoBehaviour
 {
     public enum EFlyingAnimalState
     {
         Idle,
         Chase,
-        Fly,
+        Wander,
+        Following,
+        Chasing,
         Stand,
         Landing,
     }
@@ -34,7 +37,13 @@ public class FlyingAnimal : MonoBehaviour
 
     public enum EFlyingAnimalSoundState
     {
-
+        Idle,
+        Wander,
+        Chase,
+        Following,
+        Fly,
+        Stand,
+        Landing,
     }
 
     [System.Serializable]
@@ -48,56 +57,57 @@ public class FlyingAnimal : MonoBehaviour
     public struct SFlyingAnimalSound
     {
         public EFlyingAnimalSoundState flyingAnimalSoundState;
-        public AudioClip audioClip;
+        public AudioClip clip;
+        public float minSoundIntervalInSeconds;
+        public float maxSoundIntervalInSeconds;
+        public float soundInterval;
     }
 
     #region 변수 선언
+    [Header("--- Animal Animation and Sound Settings ---")]
     public SFlyingAnimalAnimation[] animations;
     public SFlyingAnimalSound[] sounds;
-    public Dictionary<EFlyingAnimalAnimationState, string> flyingAnimalAnimationDictionary;
-    public Dictionary<EFlyingAnimalSoundState, AudioClip> flyingAnimalSoundDictionary;
-    public Transform flyingTargetTransform;
+    public Dictionary<EFlyingAnimalAnimationState, SFlyingAnimalAnimation> flyingAnimalAnimationDictionary;
+    public Dictionary<EFlyingAnimalSoundState, SFlyingAnimalSound> flyingAnimalSoundDictionary;
 
-    [SerializeField] float minSpeed;
-    [SerializeField] float maxSpeed;
-    [SerializeField] float landingDistance;
+    [Header("--- Animal Movement Settings ---")]
+    [SerializeField] float minFlySpeed;
+    [SerializeField] float maxFlySpeed;
     [SerializeField] float minAltitude;
     [SerializeField] float maxAltitude;
-    [SerializeField] float minAltitudeLimit;
-    [SerializeField] float maxAltitudeLimit;
-    [SerializeField] float turnSpeed, idleSpeed, flySpeed, hopSpeed;
+    [SerializeField] float turnSpeed;
     [SerializeField] float maxDistanceFromBase;
+    [SerializeField] float minDistanceFromBase;
     [SerializeField] bool returnToBase;
-    [SerializeField] string groundLayer;
-    [SerializeField] string waterLayer;
-    [Range(0, 1)] [SerializeField] float chanceToFind;
-    [Range(0, 1)] [SerializeField] float chanceToFly;
-    [Range(0, 1)] [SerializeField] float chanceToStand;
-    [Range(0, 1)] [SerializeField] float chanceToPecking;
-    [Range(0, 1)] [SerializeField] float chanceToRunAway;
-    [Range(0, 1)] [SerializeField] float chanceToChangeTarget;
-    [Range(0, 1)] [SerializeField] float chanceToRandomSound;
+    [SerializeField] string groundLayerName;
+    [SerializeField] float seaLevel;
+    [SerializeField] float minWanderChangeInterval;
+    [SerializeField] float maxWanderChangeInterval;
 
-    [SerializeField] ArduinoInteraction arduinoInteraction;
-    [SerializeField] float distantToGround;
-    [SerializeField] float groundCheckRadius;
+    [Header("--- Animal State Transition Settings (probalbity in seconds) ---")]
+    [SerializeField] [Range(0, 1)] float sampleValue;
 
-    [SerializeField] HandGestureManager leftHand;
-    [SerializeField] HandGestureManager rightHand;
+    [Header("--- Animal Perception Settings ---")]
+    [SerializeField] float perceptionRadius;
+    [SerializeField] [Range(0, 1)] float variation;
+    [SerializeField] float fromRadius;
+    [SerializeField] float toRadius;
+
+    [Header("--- System Settings ---")]
+    [SerializeField] AudioSource staticAudio;
+    [SerializeField] AudioSource dynamicAudio;
+    public GameObject currentFollower;
 
     Animator birdAnimator;
-    [SerializeField]
-    EFlyingAnimalState flyingAnimalState;
-    Rigidbody body;
-    float distanceFromBase, distanceFromTarget;
-    Vector3 rotation, position, direction, velocity;
-    Vector3 landingPosition;
-    Quaternion lookRotation;
-    Vector3 baseTarget;
-    public bool prevGrounded;
+    [SerializeField] EFlyingAnimalState flyingAnimalState;
+    CharacterController controller;
+    SphereCollider perceptionCollider;
 
-    float prevz, zturn;
-    float changeToTarget = 0f, changeToFind = 0f, changeToFly = 0f, changeToStand = 0f, changeToPecking = 0f, changeToRunAway = 0f;
+    Vector3 velocity;
+    Vector3 direction;
+    Vector3 wanderDirection;
+    Vector3 basePosition;
+    float prevz;
 
     #endregion
 
@@ -108,14 +118,25 @@ public class FlyingAnimal : MonoBehaviour
         prevz = 0;
         flyingAnimalState = EFlyingAnimalState.Idle;
         birdAnimator = GetComponent<Animator>();
-        body = GetComponent<Rigidbody>();
-        flyingAnimalAnimationDictionary = new Dictionary<EFlyingAnimalAnimationState, string>();
-        changeToStand = CalculateChangeBySecond(chanceToStand);
+        controller = GetComponent<CharacterController>();
+        flyingAnimalAnimationDictionary = new Dictionary<EFlyingAnimalAnimationState, SFlyingAnimalAnimation>();
+        flyingAnimalSoundDictionary = new Dictionary<EFlyingAnimalSoundState, SFlyingAnimalSound>();
+
+        perceptionCollider = transform.gameObject.AddComponent<SphereCollider>();
+        perceptionCollider.isTrigger = true;
+        perceptionCollider.center = transform.position;
+        perceptionCollider.radius = perceptionRadius;
 
         for (int i = 0; i < animations.Length; i++)
         {
-            flyingAnimalAnimationDictionary.Add(animations[i].flyingAnimalAnimationState, animations[i].transitionName);
+            flyingAnimalAnimationDictionary.Add(animations[i].flyingAnimalAnimationState, animations[i]);
         }
+        for(int i=0;i<sounds.Length;i++)
+        {
+            flyingAnimalSoundDictionary.Add(sounds[i].flyingAnimalSoundState, sounds[i]);
+        }
+
+        StartCoroutine(IERandomDirection());
     }
 
     void FixedUpdate()
@@ -128,8 +149,11 @@ public class FlyingAnimal : MonoBehaviour
             case EFlyingAnimalState.Chase:
                 FixedUpdateChase();
                 break;
-            case EFlyingAnimalState.Fly:
-                FixedUpdateFly();
+            case EFlyingAnimalState.Following:
+                FixedUpdateFollowing();
+                break;
+            case EFlyingAnimalState.Wander:
+                FixedUpdateWander();
                 break;
             case EFlyingAnimalState.Stand:
                 FixedUpdateStand();
@@ -138,186 +162,108 @@ public class FlyingAnimal : MonoBehaviour
                 FixedUpdateLanding();
                 break;
         }
-
-        UpdateChance();
-
-        if (leftHand.IsHandPlane() && flyingAnimalState == EFlyingAnimalState.Fly)
-        {
-            flyingTargetTransform = leftHand.HandPosition();
-            flyingAnimalState = EFlyingAnimalState.Chase;
-        } 
-
-        //debug purpose only
-        /*
-        if (flyingTargetTransform.gameObject.activeSelf == true && flyingAnimalState == EFlyingAnimalState.Fly)
-        {
-            flyingAnimalState = EFlyingAnimalState.Chase;
-        }
-        else if (flyingTargetTransform.gameObject.activeSelf == false)
-        {
-            flyingAnimalState = EFlyingAnimalState.Fly;
-        }
-        */
-        
-
-        if (IsGrounded())
-        {
-            arduinoInteraction.SetStiffness(1);
-        }
-        else
-        {
-            arduinoInteraction.SetStiffness(0);
-        }
-
-        transform.Translate(velocity * Time.fixedDeltaTime);
     }
     #endregion
 
     #region Update Methods
     void FixedUpdateIdle()
     {
-        flyingAnimalState = EFlyingAnimalState.Fly;
+
     }
 
     void FixedUpdateStand()
     {
-        velocity = Vector3.zero;
 
-        if (flyingTargetTransform == null)
-        {
-            flyingAnimalState = EFlyingAnimalState.Idle;
-            return;
-        }
-
-        SetAnimator(EFlyingAnimalAnimationState.Idle_1, true);
-
-        if (leftHand.GetHandGestureState() != EHandGestureState.Planed && leftHand.GetHandGestureState() != EHandGestureState.Idle)
-        {
-            flyingAnimalState = EFlyingAnimalState.Fly;
-        }
-
-        if(rightHand.GetHandGestureState() == EHandGestureState.Planed || rightHand.GetHandGestureState() == EHandGestureState.Idle)
-        {
-            body.isKinematic = true;
-            velocity = Vector3.zero;
-            transform.position = Vector3.MoveTowards(transform.position,leftHand.HandPosition().position, maxSpeed * Time.fixedDeltaTime);
-            transform.rotation = leftHand.HandPosition().rotation * Quaternion.Euler(180, 90, 0);
-        } else
-        {
-            flyingAnimalState = EFlyingAnimalState.Fly;
-            SetAnimator(EFlyingAnimalAnimationState.Take_off, true);
-        } 
     }
 
     void FixedUpdateChase()
     {
-        if (flyingTargetTransform == null)
-        {
-            flyingAnimalState = EFlyingAnimalState.Idle;
-            return;
-        }
 
-        //일단은 100을 더해서 레이를 쏴보자...
-        landingPosition = GetLandingPosition(flyingTargetTransform.position + new Vector3(0, 100, 0)) + new Vector3(0, landingDistance / 1.5f, 0);
-
-        distanceFromTarget = Vector3.Magnitude(landingPosition - transform.position);
-
-        if (flyingTargetTransform != null)
-        {
-            this.rotation = landingPosition - transform.position;
-        }
-        else
-        {
-            flyingAnimalState = EFlyingAnimalState.Idle;
-        }
-
-        if (Vector2.Distance(new Vector2(transform.position.x, transform.position.z), new Vector2(landingPosition.x, landingPosition.z)) < landingDistance)
-        {
-            flyingAnimalState = EFlyingAnimalState.Landing;
-            Debug.Log("Landing");
-        }
-
-        UpdateFlyingMotionVelocityAndAnimation();
     }
 
-    void FixedUpdateLanding()
+    void FixedUpdateFollowing()
     {
-        if (flyingTargetTransform == null)
+        Vector3 nextDirection;
+        //만약 following 하는 대상이 인지하지 못할 정도로 멀어지면 / 조건이 일치하지 않으면 즉 null이면
+        if (currentFollower == null)
         {
-            flyingAnimalState = EFlyingAnimalState.Idle;
+            flyingAnimalState = EFlyingAnimalState.Wander;
             return;
-        }
-
-        SetAnimator(EFlyingAnimalAnimationState.Flight_straight, true);
-
-        //일단은 100을 더해서 레이를 쏴보자...
-        landingPosition = GetLandingPosition(flyingTargetTransform.position + new Vector3(0, 100, 0)) + new Vector3(0, landingDistance * 2, 0);
-
-        rotation = landingPosition - transform.position;
-        rotation.y = 0;
-
-        UpdateFlyingMotionVelocityAndAnimation();
-
-        if (Vector2.Distance(new Vector2(landingPosition.x, landingPosition.z), new Vector2(transform.position.x, transform.position.z)) < groundCheckRadius)
+        } else
         {
-            velocity = Vector3.zero;
-            flyingAnimalState = EFlyingAnimalState.Stand;
-        }
+            float distanceFromTarget = Vector3.Distance(currentFollower.transform.position, transform.position);
 
-        if(IsGrounded())
-        {
-
-        }
-    }
-
-    void FixedUpdateFly()
-    {
-        distanceFromBase = Vector3.Magnitude(baseTarget - transform.position);
-
-        if (returnToBase && maxDistanceFromBase < distanceFromBase)
-        {
-            this.rotation = baseTarget - transform.position;
-        }
-
-        if (changeToTarget <= 0f)
-        {
-            this.rotation = RandomDirection(transform.position);
-            changeToTarget = CalculateChangeBySecond(chanceToChangeTarget);
-        }
-
-        if (changeToStand <= 0f)
-        {
-            changeToStand = CalculateChangeBySecond(changeToStand);
-
-            int layerMask = 1 << LayerMask.NameToLayer(groundLayer);
-            layerMask += 1 << LayerMask.NameToLayer(waterLayer);
-
-            if (Physics.Raycast(transform.position, Vector3.down, out RaycastHit hitInfo, float.MaxValue, layerMask))
+            //팔로잉 하는 대상과 너무 가까워 지면 즉 fromRadius 보다 가까워지면
+            if(distanceFromTarget < fromRadius)
             {
-                landingPosition = hitInfo.point;
-                flyingAnimalState = EFlyingAnimalState.Landing;
+                Debug.Log("1");
+                nextDirection = transform.position - currentFollower.transform.position + variation * wanderDirection;
+            }
+            //팔로잉 하는 대상과 너무 멀어지면 즉 toRadius 보다 멀어지면 
+            else if(distanceFromTarget < toRadius && distanceFromTarget > fromRadius)
+            {
+                Debug.Log("2");
+                nextDirection = currentFollower.transform.position - transform.position + variation * wanderDirection;
+            }
+            //팔로잉 하려는 대상과 따라가야 하는 거리에 있으면
+            else
+            {
+                Debug.Log("following");
+                nextDirection = currentFollower.transform.position - transform.position;
             }
         }
 
+        //고도 처리
         if (CalculateAmplitude() < minAltitude)
         {
-            this.rotation.y = Mathf.Abs(this.rotation.y);
+            nextDirection.y = 0.5f;
             //need to climb faster so we set 1 cause if return value of RandomDirection is btwn 0 and 1
         }
         else if (CalculateAmplitude() > maxAltitude)
         {
-            this.rotation.y = -Mathf.Abs(this.rotation.y);
+            nextDirection.y = -0.5f;
         }
 
-        UpdateFlyingMotionVelocityAndAnimation();
+        UpdateVelocityAndAnimation(nextDirection, maxFlySpeed);
+        controller.Move(velocity * Time.fixedDeltaTime);
+    }
+
+    void FixedUpdateLanding()
+    {
+
+    }
+
+    void FixedUpdateWander()
+    {
+        float distanceFromBase = Vector3.Distance(basePosition, transform.position);
+
+        if (returnToBase && maxDistanceFromBase < distanceFromBase)
+        {
+            direction = basePosition - transform.position;
+        }
+
+        if (CalculateAmplitude() < minAltitude)
+        {
+            wanderDirection.y = 0.5f;
+            //need to climb faster so we set 1 cause if return value of RandomDirection is btwn 0 and 1
+        }
+        else if (CalculateAmplitude() > maxAltitude)
+        {
+            wanderDirection.y = -0.5f;
+        }
+
+
+        Debug.Log(CalculateAmplitude());
+        UpdateVelocityAndAnimation(wanderDirection, minFlySpeed);
+        controller.Move(velocity * Time.fixedDeltaTime);
     }
 
     //날아다니는 새의 회전축 기울임과, 속력 그리고 애니매이션을 업데이트한다. 
-    void UpdateFlyingMotionVelocityAndAnimation()
+    void UpdateVelocityAndAnimation(Vector3 rotation, float speed)
     {
         //새가 회전하는 방향으로 새의 중심축을 이동한다.
         float temp = prevz;
-        zturn = Mathf.Clamp(Vector3.SignedAngle(this.rotation, direction, Vector3.up), -45f, 45f);
+        float zturn = Mathf.Clamp(Vector3.SignedAngle(rotation, direction, Vector3.up), -45f, 45f);
         if (prevz < zturn)
         {
             prevz += Mathf.Min(turnSpeed * Time.fixedDeltaTime, zturn - prevz);
@@ -329,20 +275,18 @@ public class FlyingAnimal : MonoBehaviour
         prevz = Mathf.Clamp(prevz, -45f, 45f);
 
         //새가 바라보는 방향으로 로테이션을 설정한다.
-        lookRotation = Quaternion.LookRotation(this.rotation, Vector3.up);
+        Quaternion lookRotation = Quaternion.LookRotation(rotation, Vector3.up);
 
         //천천히 새가 바라보는 방향으로 고개를 튼다. 또한 전에 설정한 prevz 를 적용시킨다.
-        Vector3 rotation = Quaternion.RotateTowards(transform.rotation, lookRotation, turnSpeed * Time.fixedDeltaTime).eulerAngles;
-        transform.eulerAngles = rotation;
+        transform.eulerAngles = Quaternion.RotateTowards(transform.rotation, lookRotation, turnSpeed * Time.fixedDeltaTime).eulerAngles;
         transform.Rotate(0f, 0f, prevz - temp, Space.Self);
 
         //direction 을 설정하고, 계산된 속도를 바탕으로 속력을 구한다. 이 속력은 Move 를 통해 업데이트 된다. 
         direction = Quaternion.Euler(transform.eulerAngles) * Vector3.forward;
-        velocity = flyingAnimalState == EFlyingAnimalState.Idle ? idleSpeed * direction : flySpeed * direction;
-
+        velocity = speed * direction;
 
         //애니매이션을 업데이트 하는 구간
-        if (this.rotation.y > 0)
+        if (transform.rotation.eulerAngles.y > 0)
         {
             //turn turn right
             if (zturn < 0)
@@ -358,7 +302,7 @@ public class FlyingAnimal : MonoBehaviour
                 SetAnimator(EFlyingAnimalAnimationState.Flight_straight, true);
             }
         }
-        else if (this.rotation.y <= 0)
+        else if (transform.rotation.eulerAngles.y <= 0)
         {
             //turn turn right
             if (zturn < 0)
@@ -381,51 +325,27 @@ public class FlyingAnimal : MonoBehaviour
     #region Extra functions
     void SetAnimator(EFlyingAnimalAnimationState state, bool b)
     {
-        if (flyingAnimalAnimationDictionary.ContainsKey(state) && birdAnimator.GetBool(flyingAnimalAnimationDictionary[state]) == false)
+        if (flyingAnimalAnimationDictionary.ContainsKey(state) && birdAnimator.GetBool(flyingAnimalAnimationDictionary[state].transitionName) == false)
         {
             for (int i = 0; i < animations.Length; i++)
             {
                 birdAnimator.SetBool(animations[i].transitionName, false);
             }
-            birdAnimator.SetBool(flyingAnimalAnimationDictionary[state], b);
-        }
-    }
-
-    void UpdateChance()
-    {
-        if (changeToTarget > 0)
-        {
-            changeToTarget -= 1;
-        }
-        if (changeToFind > 0)
-        {
-            changeToFind -= 1;
-        }
-        if (changeToFly > 0)
-        {
-            changeToFly -= 1;
-        }
-        if (changeToPecking > 0)
-        {
-            changeToPecking -= 1;
-        }
-        if (changeToRunAway > 0)
-        {
-            changeToRunAway -= 1;
-        }
-        if (changeToStand > 0)
-        {
-            changeToStand -= 1;
+            birdAnimator.SetBool(flyingAnimalAnimationDictionary[state].transitionName, b);
         }
     }
 
     //Scripts for usefull things
     float CalculateAmplitude()
     {
-        int layerMask = 1 << LayerMask.NameToLayer(groundLayer);
-        layerMask += 1 << LayerMask.NameToLayer(waterLayer);
+        int layerMask = 1 << LayerMask.NameToLayer(groundLayerName);
 
         Physics.Raycast(transform.position, Vector3.down, out RaycastHit hitInfo, float.MaxValue, layerMask);
+
+        if(hitInfo.point.y < seaLevel)
+        {
+            return transform.position.y - seaLevel;
+        }
 
         return hitInfo.distance;
     }
@@ -444,22 +364,107 @@ public class FlyingAnimal : MonoBehaviour
         return (1f / chance) * Random.Range(0, 2) * 1f / Time.fixedDeltaTime;
     }
 
-    Vector3 RandomDirection(Vector3 currentPosition)
+    IEnumerator IERandomDirection()
     {
-        float angleXZ = Random.Range(-Mathf.PI, Mathf.PI);
-        float angleY = Random.Range(-Mathf.PI, Mathf.PI);
+        while(true)
+        {
+            wanderDirection = new Vector3(Random.Range(-1, 1f), Random.Range(-0.5f, 0.5f), Random.Range(-1, 1f));
 
-        return Mathf.Sin(angleXZ) * Vector3.forward + Mathf.Cos(angleXZ) * Vector3.right + Mathf.Sin(angleY) * Vector3.up;
+            yield return new WaitForSeconds(Random.Range(minWanderChangeInterval, maxWanderChangeInterval));
+        }
+
     }
 
-    bool IsGrounded()
+    void PlaySound(EFlyingAnimalSoundState state)
     {
-        return Physics.BoxCast(transform.position, new Vector3(groundCheckRadius, distantToGround, groundCheckRadius), -Vector3.up, Quaternion.identity, distantToGround + float.Epsilon);
+        if (flyingAnimalSoundDictionary.ContainsKey(state) && flyingAnimalSoundDictionary[state].maxSoundIntervalInSeconds == 0)
+        {
+            if (staticAudio.clip != flyingAnimalSoundDictionary[state].clip)
+            {
+                staticAudio.clip = flyingAnimalSoundDictionary[state].clip;
+                StartCoroutine(IEPlaySound(flyingAnimalSoundDictionary[state].clip, flyingAnimalSoundDictionary[state].soundInterval));
+            }
+        }
+        else
+        {
+            if (flyingAnimalSoundDictionary.ContainsKey(state) && dynamicAudio.clip != flyingAnimalSoundDictionary[state].clip)
+            {
+                dynamicAudio.clip = flyingAnimalSoundDictionary[state].clip;
+                StartCoroutine(IEPlaySoundRandomly(
+                    flyingAnimalSoundDictionary[state].clip,
+                    flyingAnimalSoundDictionary[state].minSoundIntervalInSeconds,
+                    flyingAnimalSoundDictionary[state].maxSoundIntervalInSeconds)
+                );
+            }
+        }
+
+    }
+
+    void StopAllSound()
+    {
+        staticAudio.Stop();
+        dynamicAudio.Stop();
+    }
+
+    IEnumerator IEPlaySoundRandomly(AudioClip clip, float randomStart = 0, float randomEnd = 0)
+    {
+        while (true)
+        {
+            if (clip == dynamicAudio.clip)
+            {
+                dynamicAudio.Play();
+            }
+            else
+            {
+                yield break;
+            }
+
+            yield return new WaitForSeconds(Random.Range(randomStart, randomEnd) + dynamicAudio.clip.length);
+        }
+    }
+
+    IEnumerator IEPlaySound(AudioClip clip, float soundInterval)
+    {
+        if (soundInterval == 0)
+        {
+            staticAudio.loop = true;
+        }
+        else
+        {
+            staticAudio.loop = false;
+        }
+
+        while (true)
+        {
+            if (clip == staticAudio.clip)
+            {
+                staticAudio.Play();
+            }
+            else
+            {
+                yield break;
+            }
+
+            if (staticAudio.loop == false)
+            {
+                yield return new WaitForSeconds(staticAudio.clip.length + soundInterval + float.Epsilon);
+            }
+            else
+            {
+                yield break;
+            }
+
+        }
     }
 
     private void OnDrawGizmos()
     {
-        Gizmos.DrawWireCube(transform.position + Vector3.down * distantToGround, new Vector3(groundCheckRadius * 2, distantToGround, groundCheckRadius * 2));
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, fromRadius);
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireSphere(transform.position, toRadius);
+        Gizmos.color = Color.white;
+        Gizmos.DrawWireSphere(transform.position, perceptionRadius);
     }
     #endregion
 }

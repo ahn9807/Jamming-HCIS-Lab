@@ -76,7 +76,6 @@ public class AnimalGenerator : MonoBehaviour
 
         if(isHit == true)
         {
-            Debug.Log("haha");
             spwanPosition = raycastHit.point;
 
             if (SpwanOnAir)

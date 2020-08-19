@@ -542,7 +542,6 @@ namespace Hi5_Interaction_Core
             List<int> colliderStrings = new List<int>();
             foreach (Collider item in colliders)
             {
-                //Debug.Log(item.transform.parent);
 				if (item.GetComponent<Hi5_Glove_Interaction_Item>() != null
                     || item.transform.parent.GetComponent<Hi5_Glove_Interaction_Item>() != null)
                 {

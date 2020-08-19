@@ -4,6 +4,7 @@ using UnityEngine;
 using System.IO.Ports;
 using System;
 using UnityEditor.VersionControl;
+using System.Data;
 
 public class Arduino : MonoBehaviour
 {
@@ -16,8 +17,6 @@ public class Arduino : MonoBehaviour
     public static Arduino self;
 
     public string lastMessage;
-
-    bool messageQueueEmpty = true;
 
     void Awake()
     {
@@ -45,7 +44,7 @@ public class Arduino : MonoBehaviour
         if(checkLastMessage(message))
         {
             stream.Write(message);
-            //stream.BaseStream.Flush();
+            stream.BaseStream.Flush();
         }
     }
 
@@ -65,7 +64,8 @@ public class Arduino : MonoBehaviour
 
         string dataString = null;
 
-        WriteToArduino(syncCode);
+        stream.BaseStream.Flush();
+        stream.Write(syncCode);
 
         do
         {
@@ -86,13 +86,16 @@ public class Arduino : MonoBehaviour
             else
             {
                 yield return null;
-            }
+            } 
 
             nowTime = DateTime.Now;
             diff = nowTime - initialTime;
         } while (diff.Milliseconds < timeout);
 
-        fail?.Invoke();
+        if(dataString == null)
+        {
+            fail?.Invoke();
+        } 
 
         yield return null;
     }

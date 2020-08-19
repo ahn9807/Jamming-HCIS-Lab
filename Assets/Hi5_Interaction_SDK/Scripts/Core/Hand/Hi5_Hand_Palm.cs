@@ -25,7 +25,6 @@ namespace Hi5_Interaction_Core
 		{
 
             Dictionary<int, Hi5_Glove_Interaction_Item> dic=  Hi5_Interaction_Object_Manager.GetObjectManager().GetItems();
-            //Debug.Log(Hi5_Interaction_Object_Manager.GetObjectManager().GetItems());
             bool temp = false;
             foreach(KeyValuePair<int, Hi5_Glove_Interaction_Item> item in dic)
             {

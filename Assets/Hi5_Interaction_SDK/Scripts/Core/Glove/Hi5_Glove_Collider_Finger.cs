@@ -58,7 +58,7 @@ namespace Hi5_Interaction_Core
             }
             //Debug.Log("OnTriggerEnter" + other.name);
             base.OnTriggerEnter(other);
-			if ((other.gameObject != null && other.gameObject.GetComponent<Hi5_Glove_Interaction_Item>() != null) || (other.transform.parent.gameObject != null && other.transform.parent.gameObject.GetComponent<Hi5_Glove_Interaction_Item>() != null))
+			if (other.gameObject.GetComponent<Hi5_Glove_Interaction_Item>() != null || other.transform.parent.gameObject.GetComponent<Hi5_Glove_Interaction_Item>() != null)
             {
 				int objectId = -1000;
 				if(other.gameObject.GetComponent<Hi5_Glove_Interaction_Item>() != null)
