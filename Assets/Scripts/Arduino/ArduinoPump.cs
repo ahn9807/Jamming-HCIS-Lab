@@ -9,6 +9,11 @@ public static class ArduinoPump {
     static bool PressureSolOn;
     static bool VaccumSolOn;
 
+    public static void SetPressure(float pressure)
+    {
+        Arduino.self.WriteToArduino("r" + Mathf.RoundToInt(pressure) + " ");
+    }
+
     public static void ActivatePressurePump()
     {
         if(!PressurePumpOn)

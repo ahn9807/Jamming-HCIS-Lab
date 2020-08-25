@@ -3,7 +3,8 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags: []
+  tags:
+  - Hand
   layers:
   - Default
   - TransparentFX
@@ -20,6 +21,7 @@ TagManager:
   - Hi5Plane
   - Hi5ObjectTrigger
   - Hi5IndexFingerTail
+  - Hand
   - 
   - 
   - 
@@ -31,12 +33,11 @@ TagManager:
   - 
   - 
   - 
+  - RenderPlane (Right)
+  - RenderPlane (Left)
   - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - DualCamera (Right)
+  - DualCamera (Left)
   m_SortingLayers:
   - name: Default
     uniqueID: 0

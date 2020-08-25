@@ -6,16 +6,12 @@ public class ArduinoInteraction : MonoBehaviour
 {
     float stiffness;
 
-    [SerializeField]
-    ArduinoSensor sensor;
-
     private void Start()
     {
         //ArduinoPump.ActivatePressurePump();
         //ArduinoPump.ActivatePressureSol();
         //ArduinoPump.ActivateVaccumPump();
         //ArduinoPump.ActivateVaccumSol();
-        sensor.SetPressure(60);
     }
 
     private void Update()
